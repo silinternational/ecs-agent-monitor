@@ -1,12 +1,12 @@
 import boto3
 
 def main(event, context):
-  client = boto3.client(u'ecs')
+  ecs_client = boto3.client(u'ecs')
 
   inspect_clusters = [u'staging1']
 
   for cluster in inspect_clusters:
-    resp = client.list_container_instances(
+    resp = ecs_client.list_container_instances(
       cluster=cluster
     )
 
@@ -16,7 +16,7 @@ def main(event, context):
       nxt_tok = resp[u'nextToken']
 
       while True:
-        resp = client.list_container_instances(
+        resp = ecs_client.list_container_instances(
           cluster=cluster,
           nextToken=nxt_tok
         )
@@ -26,13 +26,13 @@ def main(event, context):
     except KeyError:
       pass
 
-    resp = client.describe_container_instances(
+    resp = ecs_client.describe_container_instances(
       cluster=cluster,
       containerInstances=instances
     )
 
     ec2 = boto3.resource('ec2')
-    client = boto3.client('autoscaling')
+    autoscale_client = boto3.client('autoscaling')
 
     for inst in resp[u'containerInstances']:
       if not inst['agentConnected']:
@@ -40,4 +40,14 @@ def main(event, context):
 
         autoscalegroup = filter(lambda k: k['Key'] == u'aws:autoscaling:groupName', I.tags)[0]['Value']
 
-        print I.id, u': ', autoscalegroup
+        # Danger! Detaching Instance from autoscaling group
+        autoscale_client.detach_instances(
+          InstanceIds=[I.id],
+          AutoScalingGroupName=autoscalegroup,
+          ShouldDecrementDesiredCapacity=False
+        )
+
+        # Danger! Terminating Instance
+        I.terminate()
+
+        print u'Detaching and Terminating: ', I.id, u' in autoscale group ', autoscalegroup
