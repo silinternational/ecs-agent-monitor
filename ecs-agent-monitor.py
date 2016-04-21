@@ -1,68 +1,71 @@
 import boto3
 
 def main(event, context):
-  ecs_client = boto3.client(u'ecs')
-
-  inspect_clusters = [u'staging1']
-
-  for cluster in inspect_clusters:
-    resp = ecs_client.list_container_instances(
-      cluster=cluster
+  if not u'cluster' in context:
+    raise Exception(
+      "Key u'cluster' not found in the context object! Which cluster should I scan?!"
     )
 
-    instances = resp[u'containerInstanceArns']
+  ecs_client = boto3.client("ecs")
 
-    try:
+  resp = ecs_client.list_container_instances(
+    cluster=context[u'cluster']
+  )
+
+  instances = resp[u'containerInstanceArns']
+
+  try:
+    nxt_tok = resp[u'nextToken']
+
+    while True:
+      resp = ecs_client.list_container_instances(
+        cluster=context[u'cluster'],
+        nextToken=nxt_tok
+      )
+
+      instances += resp[u'containerInstanceArns']
       nxt_tok = resp[u'nextToken']
+  except KeyError:
+    pass
 
-      while True:
-        resp = ecs_client.list_container_instances(
-          cluster=cluster,
-          nextToken=nxt_tok
-        )
+  resp = ecs_client.describe_container_instances(
+    cluster=context[u'cluster'],
+    containerInstances=instances
+  )
 
-        instances += resp[u'containerInstanceArns']
-        nxt_tok = resp[u'nextToken']
-    except KeyError:
-      pass
+  ec2 = boto3.resource("ec2")
+  autoscale_client = boto3.client("autoscaling")
 
-    resp = ecs_client.describe_container_instances(
-      cluster=cluster,
-      containerInstances=instances
-    )
+  terminated = []
 
-    ec2 = boto3.resource('ec2')
-    autoscale_client = boto3.client('autoscaling')
+  for inst in resp[u'containerInstances']:
+    if not inst[u'agentConnected']:
+      I = ec2.Instance(id=inst[u'ec2InstanceId'])
 
-    terminated = []
+      autoscalegroup = [x[u'Value'] for x in I.tags if x[u'Key'] == u'aws:autoscaling:groupName'][0]
 
-    for inst in resp[u'containerInstances']:
-      if not inst['agentConnected']:
-        I = ec2.Instance(id=inst[u'ec2InstanceId'])
+      # Danger! Detaching Instance from autoscaling group
+      autoscale_client.detach_instances(
+        InstanceIds=[I.id],
+        AutoScalingGroupName=autoscalegroup,
+        ShouldDecrementDesiredCapacity=False
+      )
 
-        autoscalegroup = [x['Value'] for x in I.tags if x['Key'] == u'aws:autoscaling:groupName'][0]
+      # Danger! Terminating Instance
+      I.terminate()
 
-        # Danger! Detaching Instance from autoscaling group
-        autoscale_client.detach_instances(
-          InstanceIds=[I.id],
-          AutoScalingGroupName=autoscalegroup,
-          ShouldDecrementDesiredCapacity=False
-        )
+      terminated.append(I.id)
+      print "Detaching and Terminating: %s in autoscale group %s"
+        % (I.id, autoscalegroup)
 
-        # Danger! Terminating Instance
-        I.terminate()
+  # If instances were terminated, send summary to an SNS topic (if we have the ARN)
+  if len(terminated) != 0 and u'snsLogArn' in context:
+    sns = boto3.resource("sns")
+    topic = sns.Topic(context[u'snsLogArn'])
 
-        terminated.append(I.id)
-        print u'Detaching and Terminating: ', I.id, u' in autoscale group ', autoscalegroup
-
-    # If instances were terminated, send summary to an SNS topic
-    if len(terminated) != 0:
-      sns = boto3.resource("sns")
-      topic = sns.Topic("arn")
-
-      topic.publish(
-        Subject="AWS Lambda: ECS-Agent-Monitor",
-        Message=\
+    topic.publish(
+      Subject="AWS Lambda: ECS-Agent-Monitor",
+      Message=\
 """
 The ecs-agent-monitor function running in AWS Lambda has detected %i EC2
 Instances whose ECS `ecs-agent' process has died.
@@ -72,4 +75,4 @@ terminated:
 
 %s
 """ % (len(terminated), "\n".join(terminated))
-      )
+    )
