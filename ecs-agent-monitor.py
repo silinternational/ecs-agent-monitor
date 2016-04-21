@@ -65,14 +65,13 @@ def main(event, context):
 
     topic.publish(
       Subject="AWS Lambda: ECS-Agent-Monitor",
-      Message=\
-"""
+      Message="""\
 The ecs-agent-monitor function running in AWS Lambda has detected %i EC2
-Instances whose ECS `ecs-agent' process has died.
+Instances in the `%s' ECS cluster whose `ecs-agent' process has died.
 
 The following Instances were detached from their autoscaling groups and
 terminated:
 
 %s
-""" % (len(terminated), "\n".join(terminated))
+""" % (len(terminated), context[u'cluster'], "\n".join(terminated))
     )
