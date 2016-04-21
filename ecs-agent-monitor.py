@@ -55,10 +55,11 @@ def main(event, context):
       I.terminate()
 
       terminated.append(I.id)
-      print "Detaching and Terminating: %s in autoscale group %s"
+      print "Detaching and Terminating: %s in autoscale group %s" \
         % (I.id, autoscalegroup)
 
-  # If instances were terminated, send summary to an SNS topic (if we have the ARN)
+  # If instances were terminated and we have an SNS topic ARN,
+  # send an informative message.
   if len(terminated) != 0 and u'snsLogArn' in context:
     sns = boto3.resource("sns")
     topic = sns.Topic(context[u'snsLogArn'])
