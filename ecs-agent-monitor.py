@@ -40,7 +40,7 @@ def main(event, context):
       if not inst['agentConnected']:
         I = ec2.Instance(id=inst[u'ec2InstanceId'])
 
-        autoscalegroup = filter(lambda k: k['Key'] == u'aws:autoscaling:groupName', I.tags)[0]['Value']
+        autoscalegroup = [x['Value'] for x in I.tags if x['Key'] == u'aws:autoscaling:groupName'][0]
 
         # Danger! Detaching Instance from autoscaling group
         autoscale_client.detach_instances(
@@ -56,13 +56,13 @@ def main(event, context):
         print u'Detaching and Terminating: ', I.id, u' in autoscale group ', autoscalegroup
 
     # If instances were terminated, send summary to an SNS topic
-    if (len(terminated) != 0):
-        sns = boto3.resource("sns")
-        topic = sns.Topic("arn")
+    if len(terminated) != 0:
+      sns = boto3.resource("sns")
+      topic = sns.Topic("arn")
 
-        topic.publish(
-            Subject="AWS Lambda: ECS-Agent-Monitor",
-            Message=\
+      topic.publish(
+        Subject="AWS Lambda: ECS-Agent-Monitor",
+        Message=\
 """
 The ecs-agent-monitor function running in AWS Lambda has detected %i EC2
 Instances whose ECS `ecs-agent' process has died.
@@ -72,4 +72,4 @@ terminated:
 
 %s
 """ % (len(terminated), "\n".join(terminated))
-        )
+      )
