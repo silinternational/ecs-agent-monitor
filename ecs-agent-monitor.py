@@ -1,15 +1,15 @@
 import boto3
 
 def main(event, context):
-  if not u'cluster' in context:
+  if not u'cluster' in event:
     raise Exception(
-      "Key u'cluster' not found in the context object! Which cluster should I scan?!"
+      "Key u'cluster' not found in the event object! Which cluster should I scan?!"
     )
 
   ecs_client = boto3.client("ecs")
 
   resp = ecs_client.list_container_instances(
-    cluster=context[u'cluster']
+    cluster=event[u'cluster']
   )
 
   instances = resp[u'containerInstanceArns']
@@ -19,7 +19,7 @@ def main(event, context):
 
     while True:
       resp = ecs_client.list_container_instances(
-        cluster=context[u'cluster'],
+        cluster=event[u'cluster'],
         nextToken=nxt_tok
       )
 
@@ -29,7 +29,7 @@ def main(event, context):
     pass
 
   resp = ecs_client.describe_container_instances(
-    cluster=context[u'cluster'],
+    cluster=event[u'cluster'],
     containerInstances=instances
   )
 
@@ -60,9 +60,9 @@ def main(event, context):
 
   # If instances were terminated and we have an SNS topic ARN,
   # send an informative message.
-  if len(terminated) != 0 and u'snsLogArn' in context:
+  if len(terminated) != 0 and u'snsLogArn' in event:
     sns = boto3.resource("sns")
-    topic = sns.Topic(context[u'snsLogArn'])
+    topic = sns.Topic(event[u'snsLogArn'])
 
     topic.publish(
       Subject="AWS Lambda: ECS-Agent-Monitor",
@@ -74,5 +74,5 @@ The following Instances were detached from their autoscaling groups and
 terminated:
 
 %s
-""" % (len(terminated), context[u'cluster'], "\n".join(terminated))
+""" % (len(terminated), event[u'cluster'], "\n".join(terminated))
     )
