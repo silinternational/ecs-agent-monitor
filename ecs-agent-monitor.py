@@ -76,3 +76,7 @@ terminated:
 %s
 """ % (len(terminated), event[u'cluster'], "\n".join(terminated))
     )
+
+  # Warn if logging is impossible
+  if u'snsLogArn' not in event:
+    print "Warn: key u'snsLogArn' not found in the event object, so logging is disabled."
