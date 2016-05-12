@@ -12,6 +12,13 @@ If (when) it finds the connection status to be false it will de-register the EC2
 Stop or Terminate the EC2 instance. De-refistering from the auto-scaling group will cause it to be replaced with a new healthy instance
 and either Stop the instance for further troubleshooting or just Terminate it to move on. 
 
+## IAM Policy
+You will need to create an new IAM role for this lambda function to assume.
+
+See `sample_iam.json` for a sample IAM policy that should be applied to this role.
+
+## Cloudwatch Alarm
+
 ## How to use
 TBD - we're still developing this thing.
 

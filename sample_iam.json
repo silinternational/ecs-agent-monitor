@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "1",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DetachInstances",
+        "ecs:DescribeContainerInstances",
+        "ecs:ListContainerInstances",
+        "ec2:DescribeInstanceAttribute",
+        "ec2:DescribeInstanceStatus",
+        "ec2:DescribeInstances",
+        "ec2:TerminateInstances",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "sns:Publish"
+      ],
+      "Resource": [
+        "*"
+      ]
+    }
+  ]
+}
