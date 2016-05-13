@@ -1,4 +1,5 @@
 # ecs-agent-monitor
+
 AWS Lambda function to terminate ECS instances with stopped agents.
 
 ## The problem
@@ -37,3 +38,10 @@ We welcome contributions in the form of issues opened or pull requests.
 This repository uses [git-flow](http://nvie.com/posts/a-successful-git-branching-model/).
 So, if you want to use a stable version of the script, just check-out the latest
 tag on the `master` branch.
+
+## CI/CD
+[ ![Codeship Status for silinternational/ecs-agent-monitor](https://codeship.com/projects/97556e30-e3dc-0133-e2f1-2ef0590de381/status?branch=master)](https://codeship.com/projects/146170)
+
+We are using Codeship to build and deploy this script to AWS Lambda. You can
+download the AWS Lambda zipped deployment package of the most recent tag on the
+`master` branch [here](https://s3.amazonaws.com/gtis-public-web/ecs-agent-monitor.zip).
