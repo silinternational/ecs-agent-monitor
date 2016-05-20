@@ -1,6 +1,13 @@
 import boto3
 
 def main(event, context):
+  warn_only = False
+  
+  warn_only_config = event.get("warn_only")
+  if warn_only_config and str(warn_only_config).lower() == "true":
+      warn_only = True
+      
+
   if not u'cluster' in event:
     raise Exception(
       "Key u'cluster' not found in the event object! Which cluster should I scan?!"
@@ -44,15 +51,16 @@ def main(event, context):
 
       autoscalegroup = [x[u'Value'] for x in I.tags if x[u'Key'] == u'aws:autoscaling:groupName'][0]
 
-      # Danger! Detaching Instance from autoscaling group
-      autoscale_client.detach_instances(
-        InstanceIds=[I.id],
-        AutoScalingGroupName=autoscalegroup,
-        ShouldDecrementDesiredCapacity=False
-      )
+      if not warn_only:
+        # Danger! Detaching Instance from autoscaling group
+        autoscale_client.detach_instances(
+          InstanceIds=[I.id],
+          AutoScalingGroupName=autoscalegroup,
+          ShouldDecrementDesiredCapacity=False
+        )
 
-      # Danger! Terminating Instance
-      I.terminate()
+        # Danger! Terminating Instance
+        I.terminate()
 
       terminated.append(I.id)
       print "Detaching and Terminating: %s in autoscale group %s" \
