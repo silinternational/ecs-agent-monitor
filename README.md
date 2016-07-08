@@ -40,6 +40,8 @@ Load the function code, either directly from the zipped deployment package, by
 pasting in the S3 URL to that package, or by [building your own package](http://docs.aws.amazon.com/lambda/latest/dg/lambda-python-how-to-create-deployment-package.html)
 from the source.
 
+Make sure the package contains redis. Use `pip install -r requirements.txt path/to/package`
+
 ## IAM Policy
 You will need to create an new IAM role for this Lambda function to assume,
 in order that it may have the necessary permission to access ECS clusters,
@@ -49,6 +51,13 @@ IAM permissions policy that could be applied to this role.
 It is also necessary to configure the role's trust relationships, in order to
 allow the Lambda function to assume it when run. See `sample_trust.json` for an
 IAM trust policy that should be applied to enable this.
+
+In order for the Lambda function to access Elasticache, when creating the Lambda function, provide the following:
+..- subnet IDs in the Amazon VPC
+..- a VPC security group to allow the Lambda function to access resources in the VPC
+Additionally, assign to the Lambda function a role ARN created from an IAM role with the following:
+..- AWS service role: AWS Lambda
+..- Access Permissions Policy: AWSLambdaVPCAccessExecutionRole  
 
 Once you have created this role, configure the Lambda function to assume it (see
 above).
