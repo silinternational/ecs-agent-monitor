@@ -3,7 +3,7 @@ import redis
 
 def main(event, context):
 
-    elasticache_config_endpoint = event.get("elasticcache_config_endpoint")
+    elasticache_config_endpoint = event.get("elasticache_config_endpoint")
     elasticache_port = event.get("elasticache_port")
     redis_client = redis.StrictRedis(host=elasticache_config_endpoint, 
                                      port=elasticache_port, db=0)
@@ -12,11 +12,11 @@ def main(event, context):
     print elasticache_config_endpoint
     print elasticache_port
     print redis_client
-    
+
     warn_only_config = event.get("warn_only")
     if warn_only_config and str(warn_only_config).lower() == "true":
         warn_only = True
-        
+
 
     if not u'cluster' in event:
         raise Exception(
@@ -46,7 +46,7 @@ def main(event, context):
             nxt_tok = resp[u'nextToken']
     except KeyError:
         pass
-  
+
     resp = ecs_client.describe_container_instances(
       cluster=event[u'cluster'],
       containerInstances=instances
@@ -72,7 +72,7 @@ def main(event, context):
         # check if agent is connected
         if inst[u'agentConnected']:
             if redis_client.exists(ec2instanceId):
-                redis_client.delete(ec2instanceId);
+                redis_client.delete(ec2instanceId)
 
         # check if agent is not connected
         if not inst[u'agentConnected']:
@@ -83,12 +83,12 @@ def main(event, context):
             # if instance id does not exist in redis, then add to redis
             if not instanceIdExists:
                 redis_client.set(ec2instanceId, 1)
-                trackedInRedis.append((ec2instanceId,1))
+                trackedInRedis.append((ec2instanceId, 1))
 
             # if instance id exists but has not reached fail_after, then increment number of fails
             elif instanceIdExists and numberOfFailures < fail_after:
                 redis_client.incr(ec2instanceId, 1)
-                trackedInRedis.append((ec2instanceId,numberOfFailures+1))
+                trackedInRedis.append((ec2instanceId, numberOfFailures+1))
 
             # if instance id exists in redis and instance has reached fail_after, then terminate
             else:
@@ -97,7 +97,7 @@ def main(event, context):
                 redis_client.delete(ec2instanceId)
 
                 bad_inst = ec2.Instance(id=ec2instanceId)
-                
+
                 autoscalegroup = [x[u'Value'] for x in bad_inst.tags 
                                   if x[u'Key'] == u'aws:autoscaling:groupName'][0]
 
@@ -126,7 +126,7 @@ def main(event, context):
 
         message = "ecs-agent-monitor function running in AWS Lambda has detected the following: "
 
-        for (instanceId,failures) in trackedInRedis:
+        for (instanceId, failures) in trackedInRedis:
             msg = """"\
 The instance `%s' failed. It has failed %i times. It will be terminated if it fails %i times." 
 """ % (instanceId, failures, fail_after)
