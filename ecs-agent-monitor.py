@@ -8,6 +8,10 @@ def main(event, context):
     redis_client = redis.StrictRedis(host=elasticache_config_endpoint, 
                                      port=elasticache_port, db=0)
     warn_only = False
+
+    print elasticache_config_endpoint
+    print elasticache_port
+    print redis_client
     
     warn_only_config = event.get("warn_only")
     if warn_only_config and str(warn_only_config).lower() == "true":
@@ -26,6 +30,8 @@ def main(event, context):
     )
 
     instances = resp[u'containerInstanceArns']
+
+    print instances
 
     try:
         nxt_tok = resp[u'nextToken']
@@ -56,6 +62,8 @@ def main(event, context):
     fail_after = 2
     if event.get("fail_after"):
         fail_after = event.get("fail_after")
+
+    print "about to check instances"
 
     for inst in resp[u'containerInstances']:
 
@@ -108,6 +116,7 @@ def main(event, context):
 
                 terminated.append(bad_inst.id)
 
+    print "finished checking instances"
 
     # If instances were found for tracking in redis and we have an SNS topic ARN,
     # send an informative message.
@@ -128,6 +137,8 @@ The instance `%s' failed. It has failed %i times. It will be terminated if it fa
             Message=message
         )
         
+
+    print "finished publishing message concerning instances tracked in redis"
 
     # If instances were found for termination and we have an SNS topic ARN,
     # send an informative message.
