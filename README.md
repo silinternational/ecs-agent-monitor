@@ -55,6 +55,7 @@ IAM trust policy that should be applied to enable this.
 In order for the Lambda function to access Elasticache, when creating the Lambda function, provide the following:
 - subnet IDs in the Amazon VPC
 - a VPC security group to allow the Lambda function to access resources in the VPC
+
 Additionally, assign to the Lambda function a role ARN created from an IAM role with the following:
 - AWS service role: AWS Lambda
 - Access Permissions Policy: AWSLambdaVPCAccessExecutionRole  
