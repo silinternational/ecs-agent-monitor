@@ -58,13 +58,19 @@ This function is controlled by the JSON event variable passed when it is
 invoked. It expects something like this:
 
     {
-      "cluster":"default",
-      "snsLogArn":"arn:aws:sns:region:account-id:topicname"
+      "cluster": "default",
+      "snsLogArn": "arn:aws:sns:region:account-id:topicname",
+      "elasticache_config_endpoint": "clusterName.xxxxxx.0001.region.cache.amazonaws.com",
+      "elasticache_port": 6379
+      "fail_after": 2
     }
 
-It looks in the event for two keys:
+It looks in the event for five keys:
   - `cluster`: the ECS cluster to scan for stopped agents
   - `snsLogArn`: (optional) ARN of an AWS SNS Topic
+  - `elasticache_config_endpoint`: the redis elasticache endpoint
+  - `elasticache_port`: the redis elasticache port
+  - `fail_after`: the number of failures needed to terminate an instance
 
 If `snsLogArn` is available, the function will send a formatted information
 message to that SNS topic whenever it terminates EC2 instances. You can then
