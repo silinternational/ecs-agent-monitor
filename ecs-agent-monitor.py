@@ -69,17 +69,16 @@ def main(event, context):
         # check if agent is not connected
         if not inst[u'agentConnected']:
 
-            instanceIdExists = redis_client.exist(ec2instanceId)
+            instanceIdExists = redis_client.exists(ec2instanceId)
+            numberOfFailures = redis_client.get(ec2instanceId)
 
             # if instance id does not exist in redis, then add to redis
             if not instanceIdExists:
                 redis_client.set(ec2instanceId, 1)
                 trackedInRedis.append((ec2instanceId,1))
 
-            numberOfFailures = redis_client.get(ec2instance)
-
             # if instance id exists but has not reached fail_after, then increment number of fails
-            else if instanceIdExists and numberOfFailures < fail_after:
+            elif instanceIdExists and numberOfFailures < fail_after:
                 redis_client.incr(ec2instanceId, 1)
                 trackedInRedis.append((ec2instanceId,numberOfFailures+1))
 
