@@ -52,16 +52,22 @@ It is also necessary to configure the role's trust relationships, in order to
 allow the Lambda function to assume it when run. See `sample_trust.json` for an
 IAM trust policy that should be applied to enable this.
 
-In order for the Lambda function to access Elasticache, when creating the Lambda function, provide the following:
-- subnet IDs in the Amazon VPC
-- a VPC security group to allow the Lambda function to access resources in the VPC
-
-Additionally, assign to the Lambda function a role ARN created from an IAM role with the following:
-- AWS service role: AWS Lambda
-- Access Permissions Policy: AWSLambdaVPCAccessExecutionRole  
-
 Once you have created this role, configure the Lambda function to assume it (see
 above).
+
+## Firebase
+This function requires connection to a firebase database. Please set up a database beforehand and pass in the required configuration. 
+
+    config = {
+      "apiKey": "apiKey",
+      "authDomain": "projectId.firebaseapp.com",
+      "databaseURL": "https://databaseName.firebaseio.com",
+      "storageBucket": "projectId.appspot.com",
+      "serviceAccount": "path/to/serviceAccountCredentials.json"
+    }
+
+        user = auth.sign_in_with_email_and_password(email, password)
+
 
 ## Runtime Configuration
 This function is controlled by the JSON event variable passed when it is
@@ -70,16 +76,24 @@ invoked. It expects something like this:
     {
       "cluster": "default",
       "snsLogArn": "arn:aws:sns:region:account-id:topicname",
-      "elasticache_config_endpoint": "clusterName.xxxxxx.0001.region.cache.amazonaws.com",
-      "elasticache_port": 6379
-      "fail_after": 2
+      "apiKey": "apiKey",
+      "authDomain": "projectId.firebaseapp.com",
+      "databaseURL": "https://databaseName.firebaseio.com",
+      "storageBucket": "projectId.appspot.com",
+      "firebaseEmail": "user@example.com",
+      "firebasePassword": "password",
+      "fail_after": 3
     }
 
-It looks in the event for five keys:
+It looks in the event for nine keys:
   - `cluster`: the ECS cluster to scan for stopped agents
   - `snsLogArn`: (optional) ARN of an AWS SNS Topic
-  - `elasticache_config_endpoint`: the redis elasticache endpoint
-  - `elasticache_port`: the redis elasticache port
+  - `apiKey`: api key for firebase 
+  - `authDomain`: auth domain for firebase
+  - `databaseURL`: database url for firebase
+  - `storageBucket`: storage bucket for firebase
+  - `firebaseEmail`: email auth for firebase user
+  - `firebasePassword`: password for firebase user
   - `fail_after`: the number of failures needed to terminate an instance
 
 If `snsLogArn` is available, the function will send a formatted information
