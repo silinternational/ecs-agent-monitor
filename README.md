@@ -63,10 +63,9 @@ This function requires connection to a firebase database. Please set up a databa
       "authDomain": "projectId.firebaseapp.com",
       "databaseURL": "https://databaseName.firebaseio.com",
       "storageBucket": "projectId.appspot.com",
-      "serviceAccount": "path/to/serviceAccountCredentials.json"
     }
 
-        user = auth.sign_in_with_email_and_password(email, password)
+    user = auth.sign_in_with_email_and_password(email, password)
 
 
 ## Runtime Configuration
