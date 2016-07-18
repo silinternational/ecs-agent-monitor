@@ -1,17 +1,23 @@
+import pyrebase
 import boto3
-import redis
 
 def main(event, context):
 
-    elasticache_config_endpoint = event.get("elasticache_config_endpoint")
-    elasticache_port = event.get("elasticache_port")
-    redis_client = redis.StrictRedis(host=elasticache_config_endpoint, 
-                                     port=elasticache_port, db=0)
+    config = {
+      "apiKey": event.get("apiKey"),
+      "authDomain": event.get("authDomain"),
+      "databaseURL": event.get("databaseURL"),
+      "storageBucket": event.get("storageBucket"),
+    }
+    firebase = pyrebase.initialize_app(config)
+    auth = firebase.auth()
+    user = auth.sign_in_with_email_and_password(event.get("firebaseEmail"), event.get("firebasePassword"))
+    db = firebase.database()
+
     warn_only = False
 
-    print elasticache_config_endpoint
-    print elasticache_port
-    print redis_client
+    print user
+    print db
 
     warn_only_config = event.get("warn_only")
     if warn_only_config and str(warn_only_config).lower() == "true":
@@ -56,7 +62,7 @@ def main(event, context):
     autoscale_client = boto3.client("autoscaling")
 
     terminated = []
-    trackedInRedis = []
+    trackedInFirebase = []
 
     # set amount of failures instances can have, default is 2
     fail_after = 2
@@ -67,34 +73,37 @@ def main(event, context):
 
     for inst in resp[u'containerInstances']:
 
-        ec2instanceId = inst[u'ec2InstanceId']
+        ec2instanceId = str(inst[u'ec2InstanceId'])
+        authToken = user['idToken']
+        instanceIdExists = db.child(ec2instanceId).get(authToken).val() != None
 
         # check if agent is connected
         if inst[u'agentConnected']:
-            if redis_client.exists(ec2instanceId):
-                redis_client.delete(ec2instanceId)
+            if instanceIdExists:
+                db.child(ec2instanceId).remove(authToken)
 
         # check if agent is not connected
         if not inst[u'agentConnected']:
 
-            instanceIdExists = redis_client.exists(ec2instanceId)
-            numberOfFailures = redis_client.get(ec2instanceId)
+            numberOfFailures = db.child(ec2instanceId).get(authToken).val()[ec2instanceId]
 
-            # if instance id does not exist in redis, then add to redis
+            # if instance id does not exist in firebase, then add it to firebase
             if not instanceIdExists:
-                redis_client.set(ec2instanceId, 1)
-                trackedInRedis.append((ec2instanceId, 1))
+                data = { ec2instanceId : 1 }
+                db.child(ec2instanceId).set(data, authToken)
+                trackedInFirebase.append((ec2instanceId, 1))
 
             # if instance id exists but has not reached fail_after, then increment number of fails
             elif instanceIdExists and numberOfFailures < fail_after:
-                redis_client.incr(ec2instanceId, 1)
-                trackedInRedis.append((ec2instanceId, numberOfFailures+1))
+                data = { ec2instanceId : numberOfFailures + 1 }
+                db.child(ec2instanceId).set(data, authToken)
+                trackedInFirebase.append((ec2instanceId, numberOfFailures+1))
 
-            # if instance id exists in redis and instance has reached fail_after, then terminate
+            # if instance id exists in firebase and instance has reached fail_after, then terminate
             else:
 
-                # delete instance id key from redis
-                redis_client.delete(ec2instanceId)
+                # delete instance id key from firebase
+                db.child(ec2instanceId).remove(authToken)
 
                 bad_inst = ec2.Instance(id=ec2instanceId)
 
@@ -118,15 +127,15 @@ def main(event, context):
 
     print "finished checking instances"
 
-    # If instances were found for tracking in redis and we have an SNS topic ARN,
+    # If instances were found for tracking in firebase and we have an SNS topic ARN,
     # send an informative message.
-    if len(trackedInRedis) != 0 and u'snsLogArn' in event:
+    if len(trackedInFirebase) != 0 and u'snsLogArn' in event:
         sns = boto3.resource("sns")
         topic = sns.Topic(event[u'snsLogArn'])
 
         message = "ecs-agent-monitor function running in AWS Lambda has detected the following: "
 
-        for (instanceId, failures) in trackedInRedis:
+        for (instanceId, failures) in trackedInFirebase:
             msg = """"\
 The instance `%s' failed. It has failed %i times. It will be terminated if it fails %i times." 
 """ % (instanceId, failures, fail_after)
@@ -138,7 +147,7 @@ The instance `%s' failed. It has failed %i times. It will be terminated if it fa
         )
         
 
-    print "finished publishing message concerning instances tracked in redis"
+    print "finished publishing message concerning instances tracked in firebase"
 
     # If instances were found for termination and we have an SNS topic ARN,
     # send an informative message.
