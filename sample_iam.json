@@ -6,6 +6,10 @@
       "Effect": "Allow",
       "Action": [
         "autoscaling:DetachInstances",
+        "dynamodb:DeleteItem",
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
         "ecs:DescribeContainerInstances",
         "ecs:ListContainerInstances",
         "ec2:DescribeInstanceAttribute",
