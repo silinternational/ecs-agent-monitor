@@ -18,7 +18,7 @@ def main(event, context):
     if warn_only_config and str(warn_only_config).lower() == "true":
         warn_only = True
 
-    if not u'cluster' in event:
+    if u'cluster' not in event:
         raise Exception(
           "Key u'cluster' not found in the event object! Which cluster should I scan?!"
         )
@@ -56,7 +56,7 @@ def main(event, context):
     autoscale_client = boto3.client("autoscaling")
 
     terminated = []
-    trackedInDynamoDB = []
+    tracked_in_dynamodb = []
 
     # set amount of failures instances can have, default is 2
     fail_after = 2
@@ -67,30 +67,30 @@ def main(event, context):
 
     for inst in resp[u'containerInstances']:
 
-        ec2instanceId = str(inst[u'ec2InstanceId'])
-        db_response = db_table.get_item(Key={'ec2InstanceId': ec2instanceId})
-        instanceIdExists = 'Item' in db_response
+        ec2_instance_id = str(inst[u'ec2InstanceId'])
+        db_response = db_table.get_item(Key={'ec2InstanceId': ec2_instance_id})
+        instance_id_exists = 'Item' in db_response
 
         # check if agent is connected
         if inst[u'agentConnected']:
-            if instanceIdExists:
-                db_table.delete_item(Key={'ec2InstanceId': ec2instanceId})
+            if instance_id_exists:
+                db_table.delete_item(Key={'ec2InstanceId': ec2_instance_id})
 
         # check if agent is not connected
         if not inst[u'agentConnected']:
 
-            numberOfFailures = 0 if not instanceIdExists else db_response['Item']['numberOfFailures']
+            number_of_failures = 0 if not instance_id_exists else db_response['Item']['numberOfFailures']
 
             # if instance id does not exist in dynamodb, then add it to dynamodb
-            if not instanceIdExists:
-                db_table.put_item(Item={'ec2InstanceId': ec2instanceId, 'numberOfFailures': 1})
-                trackedInDynamoDB.append((ec2instanceId, 1))
+            if not instance_id_exists:
+                db_table.put_item(Item={'ec2InstanceId': ec2_instance_id, 'numberOfFailures': 1})
+                tracked_in_dynamodb.append((ec2_instance_id, 1))
 
             # if instance id exists but has not reached fail_after, then increment number of fails
-            elif instanceIdExists and numberOfFailures < fail_after:
+            elif instance_id_exists and number_of_failures < fail_after:
                 db_table.update_item(
                     Key={
-                        'ec2InstanceId': ec2instanceId
+                        'ec2InstanceId': ec2_instance_id
                     },
                     UpdateExpression="set numberOfFailures = numberOfFailures + :val",
                     ExpressionAttributeValues={
@@ -98,15 +98,15 @@ def main(event, context):
                     },
                     ReturnValues="UPDATED_NEW"
                 )
-                trackedInDynamoDB.append((ec2instanceId, numberOfFailures + 1))
+                tracked_in_dynamodb.append((ec2_instance_id, number_of_failures + 1))
 
             # if instance id exists in dynamodb and instance has reached fail_after, then terminate
             else:
 
                 # delete instance id key from dynamodb
-                db_table.delete_item(Key={'ec2InstanceId': ec2instanceId})
+                db_table.delete_item(Key={'ec2InstanceId': ec2_instance_id})
 
-                bad_inst = ec2.Instance(id=ec2instanceId)
+                bad_inst = ec2.Instance(id=ec2_instance_id)
 
                 autoscalegroup = [x[u'Value'] for x in bad_inst.tags
                                   if x[u'Key'] == u'aws:autoscaling:groupName'][0]
@@ -122,7 +122,7 @@ def main(event, context):
                     # Danger! Terminating Instance
                     bad_inst.terminate()
                     print "Detaching and Terminating: %s in autoscale group %s" \
-                      % (bad_inst.id, autoscalegroup)
+                        % (bad_inst.id, autoscalegroup)
 
                 terminated.append(bad_inst.id)
 
@@ -130,15 +130,15 @@ def main(event, context):
 
     # If instances were found for tracking in dynamodb and we have an SNS topic ARN,
     # send an informative message.
-    if len(trackedInDynamoDB) != 0 and u'snsLogArn' in event:
+    if len(tracked_in_dynamodb) != 0 and u'snsLogArn' in event:
         sns = boto3.resource("sns", region_name=region)
         topic = sns.Topic(event[u'snsLogArn'])
 
         message = "The ecs-agent-monitor function running in AWS Lambda has detected the following: "
 
-        for (instanceId, failures) in trackedInDynamoDB:
+        for (instanceId, failures) in tracked_in_dynamodb:
             msg = """"\
-The instance `%s' failed. It has failed %i times. It will be terminated if it fails %i times." 
+The instance `%s' failed. It has failed %i times. It will be terminated if it fails %i times."
 """ % (instanceId, failures, fail_after)
             message += msg
 
