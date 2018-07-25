@@ -40,13 +40,13 @@ Load the function code, either directly from the zipped deployment package, by
 pasting in the S3 URL to that package, or by [building your own package](http://docs.aws.amazon.com/lambda/latest/dg/lambda-python-how-to-create-deployment-package.html)
 from the source.
 
-Make sure the package contains redis. Use `pip install -r requirements.txt path/to/package`
+Use `pip install -r requirements.txt path/to/package`
 
 ## IAM Policy
 You will need to create an new IAM role for this Lambda function to assume,
-in order that it may have the necessary permission to access ECS clusters,
-and deregister and terminate instances. See `sample_policy.json` for an
-IAM permissions policy that could be applied to this role.
+in order that it may have the necessary permission to access DynamoDB, ECS
+clusters, and deregister and terminate instances. See `sample_policy.json` for
+an IAM permissions policy that could be applied to this role.
 
 It is also necessary to configure the role's trust relationships, in order to
 allow the Lambda function to assume it when run. See `sample_trust.json` for an
@@ -55,18 +55,9 @@ IAM trust policy that should be applied to enable this.
 Once you have created this role, configure the Lambda function to assume it (see
 above).
 
-## Firebase
-This function requires connection to a firebase database. Please set up a database beforehand and pass in the required configuration. 
-
-    config = {
-      "apiKey": "apiKey",
-      "authDomain": "projectId.firebaseapp.com",
-      "databaseURL": "https://databaseName.firebaseio.com",
-      "storageBucket": "projectId.appspot.com",
-    }
-
-    user = auth.sign_in_with_email_and_password(email, password)
-
+## DynamoDB
+This function requires a DynamoDB table. Please create a table using a name of
+your choice beforehand. The table must have a primary key named `ec2InstanceId`.
 
 ## Runtime Configuration
 This function is controlled by the JSON event variable passed when it is
@@ -75,25 +66,19 @@ invoked. It expects something like this:
     {
       "cluster": "default",
       "snsLogArn": "arn:aws:sns:region:account-id:topicname",
-      "apiKey": "apiKey",
-      "authDomain": "projectId.firebaseapp.com",
-      "databaseURL": "https://databaseName.firebaseio.com",
-      "storageBucket": "projectId.appspot.com",
-      "firebaseEmail": "user@example.com",
-      "firebasePassword": "password",
-      "fail_after": 3
+      "tableName": "dynamodb-table-name",
+      "region": "us-west-2",
+      "fail_after": 3,
+      "warn_only": "false"
     }
 
 It looks in the event for nine keys:
   - `cluster`: the ECS cluster to scan for stopped agents
   - `snsLogArn`: (optional) ARN of an AWS SNS Topic
-  - `apiKey`: api key for firebase 
-  - `authDomain`: auth domain for firebase
-  - `databaseURL`: database url for firebase
-  - `storageBucket`: storage bucket for firebase
-  - `firebaseEmail`: email auth for firebase user
-  - `firebasePassword`: password for firebase user
+  - `tableName`: table name for DynamoDB
+  - `region`: AWS region of DynamoDB table and SNS Topic
   - `fail_after`: the number of failures needed to terminate an instance
+  - `warn_only`: (optional) boolean flag enable dry-run mode
 
 If `snsLogArn` is available, the function will send a formatted information
 message to that SNS topic whenever it terminates EC2 instances. You can then
