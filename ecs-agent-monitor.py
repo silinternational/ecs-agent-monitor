@@ -138,8 +138,8 @@ def main(event, context):
 
         for (instanceId, failures) in tracked_in_dynamodb:
             msg = """"\
-The instance `%s' failed. It has failed %i times. It will be terminated if it fails %i times."
-""" % (instanceId, failures, fail_after)
+The instance `%s' in the `%s' ECS cluster failed. It has failed %i times. It will be terminated if it fails %i times."
+""" % (instanceId, event[u'cluster'], failures, fail_after)
             message += msg
 
         topic.publish(
